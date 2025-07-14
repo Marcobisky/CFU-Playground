@@ -1,0 +1,11 @@
+# Clock
+set_io clk E3
+
+# Reset button
+set_io reset C2
+
+# LEDs
+set_io led[0] H5
+set_io led[1] J5
+set_io led[2] T9
+set_io led[3] T10

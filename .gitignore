@@ -101,3 +101,6 @@ third_party/yosys
 
 # Environment
 env
+
+# MacOS
+.DS_Store

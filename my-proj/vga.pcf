@@ -1,11 +1,24 @@
 # Clock
 set_io clk E3
 
-# Reset button
-set_io reset C2
-
 # LEDs
 set_io led[0] H5
 set_io led[1] J5
 set_io led[2] T9
 set_io led[3] T10
+
+# VGA outputs
+set_io vga_red[0] A3
+set_io vga_red[1] B4
+set_io vga_red[2] C5
+set_io vga_red[3] A4
+set_io vga_green[0] C6
+set_io vga_green[1] A5
+set_io vga_green[2] B6
+set_io vga_green[3] A6
+set_io vga_blue[0] B7
+set_io vga_blue[1] C7
+set_io vga_blue[2] D7
+set_io vga_blue[3] D8
+set_io vga_hsync B11
+set_io vga_vsync B12

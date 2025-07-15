@@ -2,11 +2,15 @@ SHELL := /bin/bash
 
 # Use F4PGA (SymbiFlow) tools from conda
 CONDA_ENV = cfu-symbiflow
+F4PGA_INSTALL_DIR = $(realpath ../env/symbiflow)
 
 # Files
 TOP = vga
 VERILOG = $(TOP).v
 BIT = $(TOP).bit
+PCF = $(TOP).pcf
+XDC = $(TOP).xdc
+SDC = $(TOP).sdc
 
 # FPGA part
 PART = xc7a100tcsg324-1
@@ -14,18 +18,27 @@ PART = xc7a100tcsg324-1
 all: $(BIT)
 
 install-sf:
-	conda env create -f ../conf/environment-symbiflow.yml
+	conda env create -f conf/environment-symbiflow.yml
 	@echo "SymbiFlow environment created. Use: conda activate $(CONDA_ENV)"
 
-$(BIT): $(VERILOG) $(TOP).pcf
-	conda run -n $(CONDA_ENV) yosys -p "read_verilog $(VERILOG); synth_xilinx -family xc7 -top $(TOP); write_edif $(TOP).edif"
-	conda run -n $(CONDA_ENV) nextpnr-xilinx --chipdb /opt/conda/envs/$(CONDA_ENV)/share/nextpnr/xilinx/xc7a100t.bba --edif $(TOP).edif --write $(TOP).fasm --part $(PART) --pcf $(TOP).pcf
-	conda run -n $(CONDA_ENV) fasm2bels --part $(PART) --fasm $(TOP).fasm --bit $(BIT)
+$(BIT): $(VERILOG) $(TOP).pcf $(TOP).xdc
+	# Step 1: Synthesis
+	F4PGA_INSTALL_DIR=$(F4PGA_INSTALL_DIR) conda run -n $(CONDA_ENV) symbiflow_synth -t $(TOP) -v $(VERILOG) -d artix7 -p $(PART) -x $(TOP).xdc
+	# Step 2: Pack
+	F4PGA_INSTALL_DIR=$(F4PGA_INSTALL_DIR) conda run -n $(CONDA_ENV) symbiflow_pack -e $(TOP).eblif -P $(PART) -s $(TOP).sdc
+	# Step 3: Place
+	F4PGA_INSTALL_DIR=$(F4PGA_INSTALL_DIR) conda run -n $(CONDA_ENV) symbiflow_place -e $(TOP).eblif -p $(TOP).pcf -n $(TOP).net -P $(PART) -s $(TOP).sdc
+	# Step 4: Route
+	F4PGA_INSTALL_DIR=$(F4PGA_INSTALL_DIR) conda run -n $(CONDA_ENV) symbiflow_route -e $(TOP).eblif -P $(PART) -s $(TOP).sdc
+	# Step 5: Generate FASM
+	F4PGA_INSTALL_DIR=$(F4PGA_INSTALL_DIR) conda run -n $(CONDA_ENV) symbiflow_write_fasm -e $(TOP).eblif -P $(PART)
+	# Step 6: Generate bitstream
+	F4PGA_INSTALL_DIR=$(F4PGA_INSTALL_DIR) conda run -n $(CONDA_ENV) symbiflow_write_bitstream -f $(TOP).fasm -d artix7 -p $(PART) -b $(BIT)
 
 prog: $(BIT)
 	openocd -f arty.cfg -c "init; pld load 0 $(BIT); shutdown"
 
 clean:
-	rm -f $(TOP).edif $(TOP).fasm $(BIT)
+	rm -f $(TOP).eblif $(TOP).fasm $(TOP).net $(TOP).place $(TOP).route $(TOP).sdc $(BIT) *.log *.rpt
 
 .PHONY: all install-sf prog clean
